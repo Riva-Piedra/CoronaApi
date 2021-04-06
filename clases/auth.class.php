@@ -13,28 +13,52 @@ class Auth extends Conexion {
     private $token;
 
     private function login($json){
+
         $res = new Response;
         $data = json_decode($json, true);
-        $usuario = $data['usuario'];
-        $password = $data['password'];
-        $query = "SELECT id, usuario, pass from usuarios WHERE usuario = '$usuario' AND pass = '$password'";
-        $result = parent::only_fetch_data($query);
-        if($result){
-            $res = $res->code_200();
+        $usuario = trim(strtolower(filter_var($data['usuario'], FILTER_SANITIZE_STRING))) ;
+        $password = trim(filter_var($data['pass'], FILTER_SANITIZE_STRING));
+        if(empty($usuario) || empty($password)){
+            $msj = "Rellene todos los campos";
+            $res = $res->error_409($msj);
             return $res;
         } else {
-            $res = $res->error_404();
-            return $res;
+            $password = hash("md5", $password);
+            $query = "SELECT usuario, pass from usuarios WHERE usuario = '$usuario' AND pass = '$password'";
+            $result = parent::only_fetch_data($query);
+            if($result){
+                $res = $res->code_200();
+                $this->token = $this->token($usuario, $password);
+                $res['token'] = $this->token;
+                return $res;
+            } else {
+                $res = $res->error_404();
+                return $res;
+            }
         }
     }
 
     private function registro($json){
         $res = new Response;
         $data = json_decode($json, true);
-        $this->usuario = $data['usuario'];
-        $this->password = $data['pass'];
+        $this->usuario = trim(strtolower(filter_var($data['usuario'], FILTER_SANITIZE_STRING))); 
+        $this->password = trim(filter_var($data['pass'], FILTER_SANITIZE_STRING));
         $pass2 = $data['pass2'];
-        $query = "INSERT INTO usuarios(usuario, pass) values('$this->usuario', '$this->password')";
+        if(empty($this->usuario) || empty($this->password || empty($pass2))){
+            $msj = "Rellene todos los campos";
+            $res = $res->error_409($msj);
+            return $res;
+        }
+            
+        if($this->password === $pass2){
+            $pass = hash("md5", $this->pass);
+        } else {
+            $msj = "Las contraseñas no coinciden";
+            $res = $res->error_409($msj);
+            return $res;
+        }
+
+        $query = "INSERT INTO usuarios(usuario, pass) values('$this->usuario', '$pass')";
         $result = parent::alter_data($query);
         if($result){
             $res = $res->code_201();
@@ -45,20 +69,20 @@ class Auth extends Conexion {
         }
     }
 
-    private function Token($usuario, $pass, $id) {
+    private function token($usuario, $pass) {
+        $jwt = new JWT;
         $time = time();
-        $key = "Hysd&";
+        $key = "Hysd&7A445";
         $token = array(
         'iat' => $time, // Tiempo que inició el token
         'exp' => $time + (60*60), // Tiempo que expirará el token (+1 hora)
-        'data' => [ // información del usuario
-        'id' => $id,   
+        'data' => [ // información del usuario  
         'pass' => $pass, // key 
-        'name' => $usuario // secret
+        'user' => $usuario // secret
         ]
     );
 
-    $token = JTW::encode($token, $key);
+    $token = $jwt->encode($token, $key);
 
     return $token;
     }
