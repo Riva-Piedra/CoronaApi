@@ -5,7 +5,6 @@ require_once "func/funciones.php";
 require_once "clases/pacientes.class.php";
 require_once "clases/response.php";
 
-
 $_paciente = new Paciente;
 $_response = new Response;
 
