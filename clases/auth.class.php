@@ -1,7 +1,8 @@
 <?php
-
-require_once "../conexion/conexion.class.php";
+error_log(0);
+require_once "./conexion/conexion.class.php";
 require_once "response.php";
+require_once "./func/funciones.php";
 require "./vendor/autoload.php";
 
 use Firebase\JWT\JWT;
@@ -11,19 +12,20 @@ class Auth extends Conexion {
     private $usuario;
     private $password;
     private $token;
+    private $key = "Hysd&7A445";
 
-    private function login($json){
+    public function login($json){
 
         $res = new Response;
         $data = json_decode($json, true);
-        $usuario = trim(strtolower(filter_var($data['usuario'], FILTER_SANITIZE_STRING))) ;
-        $password = trim(filter_var($data['pass'], FILTER_SANITIZE_STRING));
-        if(empty($usuario) || empty($password)){
+        $usuario = normalizar($data['usuario']);
+        $password = normalizar($data['pass']);
+        if(!$usuario || !$password){
             $msj = "Rellene todos los campos";
             $res = $res->error_409($msj);
             return $res;
         } else {
-            $password = hash("md5", $password);
+            $password = hash("sha256", $password);
             $query = "SELECT usuario, pass from usuarios WHERE usuario = '$usuario' AND pass = '$password'";
             $result = parent::only_fetch_data($query);
             if($result){
@@ -32,33 +34,42 @@ class Auth extends Conexion {
                 $res['token'] = $this->token;
                 return $res;
             } else {
-                $res = $res->error_404();
+                $msj = 'Credenciales Incorrectas';
+                $res = $res->error_404($msj);
                 return $res;
             }
         }
     }
 
-    private function registro($json){
+    public function registro($json){
         $res = new Response;
         $data = json_decode($json, true);
-        $this->usuario = trim(strtolower(filter_var($data['usuario'], FILTER_SANITIZE_STRING))); 
-        $this->password = trim(filter_var($data['pass'], FILTER_SANITIZE_STRING));
-        $pass2 = $data['pass2'];
-        if(empty($this->usuario) || empty($this->password || empty($pass2))){
+        $this->usuario = normalizar($data['usuario']); 
+        $this->password = normalizar($data['pass']);
+        $pass2 = normalizar($data['pass2']);
+        if(!$this->usuario || !$this->password || !$pass2){
             $msj = "Rellene todos los campos";
             $res = $res->error_409($msj);
             return $res;
-        }
-            
+        } 
+
+        $query = "SELECT usuario FROM usuarios WHERE usuario = '$this->usuario'";
+        $double = parent::buscar_duplicados($query);
+        if($double){
+            $msj = "El nombre de usuario ya existe";
+            $res = $res->error_409($msj);
+            return $res;
+        }     
+
         if($this->password === $pass2){
-            $pass = hash("md5", $this->pass);
+            $pass = hash("sha256", $pass2);
         } else {
             $msj = "Las contraseñas no coinciden";
             $res = $res->error_409($msj);
             return $res;
         }
 
-        $query = "INSERT INTO usuarios(usuario, pass) values('$this->usuario', '$pass')";
+        $query = "INSERT INTO usuarios(usuario, pass) VALUES('$this->usuario', '$pass')";
         $result = parent::alter_data($query);
         if($result){
             $res = $res->code_201();
@@ -72,7 +83,6 @@ class Auth extends Conexion {
     private function token($usuario, $pass) {
         $jwt = new JWT;
         $time = time();
-        $key = "Hysd&7A445";
         $token = array(
         'iat' => $time, // Tiempo que inició el token
         'exp' => $time + (60*60), // Tiempo que expirará el token (+1 hora)
@@ -82,11 +92,29 @@ class Auth extends Conexion {
         ]
     );
 
-    $token = $jwt->encode($token, $key);
+    $token = $jwt->encode($token, $this->key);
 
     return $token;
     }
-}
+
+    public function comprobrar_Token($token){
+        $res = new Response;
+            $jwt = new JWT;
+            try {
+                $result = $jwt->decode($token, $this->key, array('HS256')); 
+                if($result) {
+                    return true;
+                } else {
+                    $res = $res->error_401();
+                    return $res;
+                }
+            } catch (\Throwable $th) {
+                $res = $res->error_401();
+                $res["token"] = $th->getMessage();
+                return $res;
+            }
+        }
+    }
 
 
 ?>

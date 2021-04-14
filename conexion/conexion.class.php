@@ -44,12 +44,11 @@ class Conexion {
     }
 
     //Buscar datos duplicados
-    protected function buscar_duplicados($id){
-        $query = "SELECT DNI FROM pacientes WHERE DNI = '$id'";
+    protected function buscar_duplicados($query){
         $data = $this->conexion->prepare($query);
         $data->execute();
         $row = $data->rowCount();
-        if($row == 1){
+        if($row >= 1){
             return true;
         } else {
             return false;

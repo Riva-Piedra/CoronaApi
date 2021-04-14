@@ -18,4 +18,12 @@ function determinar_grupo($edad){
     }
 }   
 
+function normalizar($string){
+    if(empty($string)){
+        return false;
+    } else {
+        return trim(filter_var($string, FILTER_SANITIZE_STRING));
+    }
+}
+
 ?>

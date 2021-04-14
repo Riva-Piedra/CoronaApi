@@ -53,11 +53,21 @@ class Response {
         return $this->response;
     }
 
-    public function error_404(){
+    public function error_401($msj = "No estas autorizado, vuelvete a logear porfavor"){
+        $this->response['status'] = "error";
+        $this->response['result'] = array(
+            "error_code" => "401",
+            "error_msg" => $msj
+        );
+
+        return $this->response;
+    }
+
+    public function error_404($msj = 'No se ha encontrado el recurso solicitado, probablemente no exista'){
         $this->response['status'] = 'error';
         $this->response['result'] = array(
             'error_code' => '404',
-            'error_msg' => 'No se ha encontrado el recurso solicitado, probablemente no exista'
+            'error_msg' => $msj
         );
 
         return $this->response;
